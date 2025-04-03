@@ -2,8 +2,9 @@
 Integration tests for preprocessing and analytics services.
 These tests verify that the individual services work correctly with their dependencies.
 """
-import pytest
-import requests
+# Will use these imports when tests are implemented
+# import pytest
+# import requests
 
 
 # Define base URLs for services - update with actual endpoints when deployed
