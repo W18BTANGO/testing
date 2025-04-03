@@ -25,7 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest-html
+          pip install pytest-html weasyprint
 
       - name: Run tests with coverage and HTML reports
         run: |
@@ -45,17 +45,26 @@ jobs:
             echo "Error: htmltest/ directory not found. Ensure tests pass and --html is enabled."
             exit 1
           fi
+          
+      - name: Install additional dependencies for PDF conversion
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev libffi-dev shared-mime-info
 
-      - name: Upload coverage report
+      - name: Convert HTML reports to PDF
+        run: |
+          mkdir -p pdfreports
+          python -c "
+          from weasyprint import HTML
+          # Convert test report
+          HTML('htmltest/report.html').write_pdf('pdfreports/test_report.pdf')
+          # Convert index.html from coverage
+          HTML('htmlcov/index.html').write_pdf('pdfreports/coverage_report.pdf')
+          "
+          
+      - name: Upload PDF reports
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: htmlcov/
-          compression-level: 0  # Faster upload for HTML files
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: htmltest/
-          compression-level: 0  # Faster upload for HTML files
+          name: pdf-reports
+          path: pdfreports/
+          compression-level: 0
