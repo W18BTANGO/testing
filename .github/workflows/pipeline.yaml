@@ -25,7 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest-html weasyprint
+          pip install pytest-html
 
       - name: Run tests with coverage and HTML reports
         run: |
@@ -46,25 +46,63 @@ jobs:
             exit 1
           fi
           
-      - name: Install additional dependencies for PDF conversion
+      - name: Setup Playwright
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev libffi-dev shared-mime-info
-
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          
       - name: Convert HTML reports to PDF
         run: |
           mkdir -p pdfreports
-          python -c "
-          from weasyprint import HTML
-          # Convert test report
-          HTML('htmltest/report.html').write_pdf('pdfreports/test_report.pdf')
-          # Convert index.html from coverage
-          HTML('htmlcov/index.html').write_pdf('pdfreports/coverage_report.pdf')
-          "
+          
+          # Create a Python script to properly render and convert the reports
+          cat > convert_reports.py << 'EOF'
+          import asyncio
+          from playwright.async_api import async_playwright
+          import os
+
+          async def html_to_pdf(html_path, pdf_path):
+              async with async_playwright() as p:
+                  browser = await p.chromium.launch()
+                  page = await browser.new_page()
+                  
+                  # Use file:// protocol with absolute path
+                  absolute_path = os.path.abspath(html_path)
+                  await page.goto(f"file://{absolute_path}", wait_until="networkidle")
+                  
+                  # Make sure the page is fully loaded
+                  await page.wait_for_timeout(1000)
+                  
+                  # Print to PDF with optimal settings
+                  await page.pdf(path=pdf_path, print_background=True, format="A4")
+                  await browser.close()
+
+          async def main():
+              # Convert test report
+              await html_to_pdf("htmltest/report.html", "pdfreports/test_report.pdf")
+              
+              # Convert coverage report
+              await html_to_pdf("htmlcov/index.html", "pdfreports/coverage_report.pdf")
+
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          # Run the script
+          python convert_reports.py
           
       - name: Upload PDF reports
         uses: actions/upload-artifact@v4
         with:
           name: pdf-reports
           path: pdfreports/
+          compression-level: 0
+          
+      - name: Upload HTML reports (as backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-reports
+          path: |
+            htmltest/
+            htmlcov/
           compression-level: 0
