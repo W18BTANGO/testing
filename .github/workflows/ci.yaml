@@ -38,13 +38,13 @@ jobs:
           fi
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           name: coverage-report
           path: htmlcov/
 
       - name: Upload test results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           name: test-results
           path: report.xml 
